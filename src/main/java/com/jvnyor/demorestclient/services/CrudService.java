@@ -89,9 +89,7 @@ public class CrudService {
         return restClient.get()
                 .uri(baseUrl + "/cats")
                 .retrieve()
-                .onStatus(getHttpStatusCodeIsErrorPredicate(), (request, response) -> {
-                    throw new CatUnknownErrorException();
-                })
+                .onStatus(getHttpStatusCodeIsErrorPredicate(), (request, response) -> logUnknownErrorAndThrowAppropriatedException(request))
                 .body(new ParameterizedTypeReference<>() {
                 });
     }
