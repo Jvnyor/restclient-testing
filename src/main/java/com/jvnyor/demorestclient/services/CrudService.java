@@ -21,7 +21,7 @@ public class CrudService {
 
     private final Logger logger = LoggerFactory.getLogger(CrudService.class);
 
-    @Value("${crud.base.url}")
+    @Value("${crud-crud.base.url}")
     private String baseUrl;
 
     private final RestClient restClient;
