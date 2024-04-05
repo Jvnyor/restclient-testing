@@ -28,13 +28,21 @@ public class CrudService {
 
     public CrudService(RestClient.Builder restClient) {
         this.restClient = restClient
-                .baseUrl(baseUrl)
+                .requestInterceptor((request, body, execution) -> {
+                    var requestBody = new String(body);
+                    if (requestBody.isEmpty()) {
+                        logger.info("{}: Request URI: {}", request.getMethod().name(), request.getURI());
+                    } else {
+                        logger.info("{}: Request URI: {}, Request Body: {}", request.getMethod().name(), request.getURI(), requestBody);
+                    }
+                    return execution.execute(request, body);
+                })
                 .build();
     }
 
     public CatResponseDTO createCat(CatRequestDTO catRequestDTO) {
         return restClient.post()
-                .uri("/cats")
+                .uri(baseUrl + "/cats")
                 .body(catRequestDTO)
                 .retrieve()
                 .onStatus(getHttpStatusCodeIsErrorPredicate(), (request, response) -> logUnknownErrorAndThrowAppropriatedException(request))
@@ -48,7 +56,7 @@ public class CrudService {
 
     public CatResponseDTO getCat(String id) {
         return restClient.get()
-                .uri("/cats/{id}", id)
+                .uri(baseUrl + "/cats/{id}", id)
                 .retrieve()
                 .onStatus(getHttpStatusCodeNotFoundPredicate(), (request, response) -> logNotFoundErrorRequestAndThrowAppropriatedException(request))
                 .onStatus(getHttpStatusCodeIsErrorPredicate(), (request, response) -> logUnknownErrorAndThrowAppropriatedException(request))
@@ -62,7 +70,7 @@ public class CrudService {
 
     public void updateCat(String id, CatRequestDTO catRequestDTO) {
         restClient.put()
-                .uri("/cats/{id}", id)
+                .uri(baseUrl + "/cats/{id}", id)
                 .body(catRequestDTO)
                 .retrieve()
                 .onStatus(getHttpStatusCodeNotFoundPredicate(), (request, response) -> logNotFoundErrorRequestAndThrowAppropriatedException(request))
@@ -72,7 +80,7 @@ public class CrudService {
 
     public void deleteCat(String id) {
         restClient.delete()
-                .uri("/cats/{id}", id)
+                .uri(baseUrl + "/cats/{id}", id)
                 .retrieve()
                 .onStatus(getHttpStatusCodeNotFoundPredicate(), (request, response) -> logNotFoundErrorRequestAndThrowAppropriatedException(request))
                 .onStatus(getHttpStatusCodeIsErrorPredicate(), (request, response) -> logUnknownErrorAndThrowAppropriatedException(request))
@@ -89,7 +97,7 @@ public class CrudService {
 
     public List<CatResponseDTO> listCats() {
         return restClient.get()
-                .uri("/cats")
+                .uri(baseUrl + "/cats")
                 .retrieve()
                 .onStatus(getHttpStatusCodeIsErrorPredicate(), (request, response) -> logUnknownErrorAndThrowAppropriatedException(request))
                 .body(new ParameterizedTypeReference<>() {

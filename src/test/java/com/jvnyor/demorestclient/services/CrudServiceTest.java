@@ -45,7 +45,7 @@ class CrudServiceTest {
 
     @Test
     void givenCatRequestDTO_whenCreateCat_thenReturnCatResponseDTO() throws JsonProcessingException {
-        server.expect(requestTo("/cats"))
+        server.expect(requestTo("http://localhost:8080/api/v1/cats"))
                 .andExpect(method(HttpMethod.POST))
                 .andRespond(withSuccess(objectMapper.writeValueAsString(catResponseDTO), MediaType.APPLICATION_JSON));
 
@@ -60,7 +60,7 @@ class CrudServiceTest {
 
     @Test
     void givenCatRequestDTO_whenCreateCat_butRequestFail_thenThrowException() {
-        server.expect(requestTo("/cats"))
+        server.expect(requestTo("http://localhost:8080/api/v1/cats"))
                 .andExpect(method(HttpMethod.POST))
                 .andRespond(withServerError());
 
@@ -69,7 +69,7 @@ class CrudServiceTest {
 
     @Test
     void givenExistingID_whenGetCat_thenReturnCatResponseDTO() throws JsonProcessingException {
-        server.expect(requestTo("/cats/1"))
+        server.expect(requestTo("http://localhost:8080/api/v1/cats/1"))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess(objectMapper.writeValueAsString(catResponseDTO), MediaType.APPLICATION_JSON));
 
@@ -86,7 +86,7 @@ class CrudServiceTest {
 
     @Test
     void givenNonExistentID_whenGetCat_thenThrowException() {
-        server.expect(requestTo("/cats/1"))
+        server.expect(requestTo("http://localhost:8080/api/v1/cats/1"))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withStatus(HttpStatus.NOT_FOUND));
 
@@ -95,7 +95,7 @@ class CrudServiceTest {
 
     @Test
     void givenExistingID_whenGetCat_butRequestFail_thenThrowException() {
-        server.expect(requestTo("/cats/1"))
+        server.expect(requestTo("http://localhost:8080/api/v1/cats/1"))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withServerError());
 
@@ -104,7 +104,7 @@ class CrudServiceTest {
 
     @Test
     void givenExistingIDAndCatRequestDTO_whenUpdateCat_thenExceptionIsNotThrown() {
-        server.expect(requestTo("/cats/1"))
+        server.expect(requestTo("http://localhost:8080/api/v1/cats/1"))
                 .andExpect(method(HttpMethod.PUT))
                 .andRespond(withNoContent());
 
@@ -116,7 +116,7 @@ class CrudServiceTest {
 
     @Test
     void givenNonExistentIDAndCatRequestDTO_whenUpdateCat_thenThrowException() {
-        server.expect(requestTo("/cats/1"))
+        server.expect(requestTo("http://localhost:8080/api/v1/cats/1"))
                 .andExpect(method(HttpMethod.PUT))
                 .andRespond(withStatus(HttpStatus.NOT_FOUND));
 
@@ -128,7 +128,7 @@ class CrudServiceTest {
 
     @Test
     void givenExistingIDAndCatRequestDTO_whenUpdateCat_butRequestFail_thenThrowException() {
-        server.expect(requestTo("/cats/1"))
+        server.expect(requestTo("http://localhost:8080/api/v1/cats/1"))
                 .andExpect(method(HttpMethod.PUT))
                 .andRespond(withServerError());
 
@@ -140,7 +140,7 @@ class CrudServiceTest {
 
     @Test
     void givenExistingID_whenDeleteCat_thenExceptionIsNotThrown() {
-        server.expect(requestTo("/cats/1"))
+        server.expect(requestTo("http://localhost:8080/api/v1/cats/1"))
                 .andExpect(method(HttpMethod.DELETE))
                 .andRespond(withNoContent());
 
@@ -151,7 +151,7 @@ class CrudServiceTest {
 
     @Test
     void givenNonExistentID_whenDeleteCat_thenThrowException() {
-        server.expect(requestTo("/cats/1"))
+        server.expect(requestTo("http://localhost:8080/api/v1/cats/1"))
                 .andExpect(method(HttpMethod.DELETE))
                 .andRespond(withStatus(HttpStatus.NOT_FOUND));
 
@@ -162,7 +162,7 @@ class CrudServiceTest {
 
     @Test
     void givenExistingID_whenDeleteCat_butRequestFail_thenThrowException() {
-        server.expect(requestTo("/cats/1"))
+        server.expect(requestTo("http://localhost:8080/api/v1/cats/1"))
                 .andExpect(method(HttpMethod.DELETE))
                 .andRespond(withServerError());
 
@@ -173,7 +173,7 @@ class CrudServiceTest {
 
     @Test
     void givenRequest_whenListCats_thenReturnListContainingCatResponseDTO() throws JsonProcessingException {
-        server.expect(requestTo("/cats"))
+        server.expect(requestTo("http://localhost:8080/api/v1/cats"))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess(objectMapper.writeValueAsString(new CatResponseDTO[]{catResponseDTO}), MediaType.APPLICATION_JSON));
 
@@ -191,7 +191,7 @@ class CrudServiceTest {
 
     @Test
     void givenRequest_whenListCats_butRequestFail_thenReturnListContainingCatResponseDTO() {
-        server.expect(requestTo("/cats"))
+        server.expect(requestTo("http://localhost:8080/api/v1/cats"))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withServerError());
 
