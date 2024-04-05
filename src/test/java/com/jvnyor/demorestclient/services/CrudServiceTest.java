@@ -1,5 +1,7 @@
 package com.jvnyor.demorestclient.services;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jvnyor.demorestclient.dtos.CatRequestDTO;
 import com.jvnyor.demorestclient.dtos.CatResponseDTO;
 import com.jvnyor.demorestclient.services.exceptions.CatNotFoundException;
@@ -7,31 +9,29 @@ import com.jvnyor.demorestclient.services.exceptions.CatUnknownErrorException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.client.RestClientTest;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.client.RestClient;
-
-import java.util.List;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.client.MockRestServiceServer;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.*;
 
-@ExtendWith(MockitoExtension.class)
+@RestClientTest(CrudService.class)
 class CrudServiceTest {
 
-    @Mock
-    private RestClient restClient;
+    @Autowired
+    private MockRestServiceServer server;
 
-    @InjectMocks
+    @Autowired
     private CrudService crudService;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     private CatRequestDTO catRequestDTO;
 
@@ -44,16 +44,10 @@ class CrudServiceTest {
     }
 
     @Test
-    void givenCatRequestDTO_whenCreateCat_thenReturnCatResponseDTO() {
-        RestClient.RequestBodyUriSpec requestSpecMock = mock(RestClient.RequestBodyUriSpec.class);
-        RestClient.ResponseSpec responseSpecMock = mock(RestClient.ResponseSpec.class);
-
-        when(restClient.post()).thenReturn(requestSpecMock);
-        when(requestSpecMock.uri(anyString())).thenReturn(requestSpecMock);
-        when(requestSpecMock.body(any(CatRequestDTO.class))).thenReturn(requestSpecMock);
-        when(requestSpecMock.retrieve()).thenReturn(responseSpecMock);
-        when(responseSpecMock.onStatus(any(), any())).thenReturn(responseSpecMock);
-        when(responseSpecMock.body(CatResponseDTO.class)).thenReturn(catResponseDTO);
+    void givenCatRequestDTO_whenCreateCat_thenReturnCatResponseDTO() throws JsonProcessingException {
+        server.expect(requestTo("/cats"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess(objectMapper.writeValueAsString(catResponseDTO), MediaType.APPLICATION_JSON));
 
         var catResponseDTOCreated = crudService.createCat(catRequestDTO);
         assertAll(
@@ -66,35 +60,18 @@ class CrudServiceTest {
 
     @Test
     void givenCatRequestDTO_whenCreateCat_butRequestFail_thenThrowException() {
-        RestClient.RequestBodyUriSpec requestSpecMock = mock(RestClient.RequestBodyUriSpec.class);
-        RestClient.ResponseSpec responseSpecMock = mock(RestClient.ResponseSpec.class);
-
-        when(restClient.post()).thenReturn(requestSpecMock);
-        when(requestSpecMock.uri(anyString())).thenReturn(requestSpecMock);
-        when(requestSpecMock.body(any(CatRequestDTO.class))).thenReturn(requestSpecMock);
-        when(requestSpecMock.retrieve()).thenReturn(responseSpecMock);
-        when(responseSpecMock.onStatus(any(), any())).thenAnswer(invocation -> {
-            HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
-            if (status.isError()) {
-                throw new CatUnknownErrorException();
-            }
-            return responseSpecMock;
-        });
+        server.expect(requestTo("/cats"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withServerError());
 
         assertThrows(CatUnknownErrorException.class, () -> crudService.createCat(catRequestDTO));
     }
 
     @Test
-    void givenExistingID_whenGetCat_thenReturnCatResponseDTO() {
-        var requestSpecMock = mock(RestClient.RequestHeadersUriSpec.class);
-        RestClient.ResponseSpec responseSpecMock = mock(RestClient.ResponseSpec.class);
-
-        when(restClient.get()).thenReturn(requestSpecMock);
-        when(requestSpecMock.uri(anyString(), anyString())).thenReturn(requestSpecMock);
-        when(requestSpecMock.retrieve()).thenReturn(responseSpecMock);
-        when(responseSpecMock.onStatus(any(), any())).thenReturn(responseSpecMock);
-        when(responseSpecMock.onStatus(any(), any())).thenReturn(responseSpecMock);
-        when(responseSpecMock.body(CatResponseDTO.class)).thenReturn(catResponseDTO);
+    void givenExistingID_whenGetCat_thenReturnCatResponseDTO() throws JsonProcessingException {
+        server.expect(requestTo("/cats/1"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(objectMapper.writeValueAsString(catResponseDTO), MediaType.APPLICATION_JSON));
 
         var id = "1";
         var catResponseDTOFromGet = crudService.getCat(id);
@@ -109,55 +86,27 @@ class CrudServiceTest {
 
     @Test
     void givenNonExistentID_whenGetCat_thenThrowException() {
-        var requestSpecMock = mock(RestClient.RequestHeadersUriSpec.class);
-        RestClient.ResponseSpec responseSpecMock = mock(RestClient.ResponseSpec.class);
-
-        when(restClient.get()).thenReturn(requestSpecMock);
-        when(requestSpecMock.uri(anyString(), anyString())).thenReturn(requestSpecMock);
-        when(requestSpecMock.retrieve()).thenReturn(responseSpecMock);
-        when(responseSpecMock.onStatus(any(), any())).thenAnswer(invocation -> {
-            HttpStatus status = HttpStatus.NOT_FOUND;
-            if (status.isError()) {
-                throw new CatNotFoundException();
-            }
-            return responseSpecMock;
-        });
+        server.expect(requestTo("/cats/1"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withStatus(HttpStatus.NOT_FOUND));
 
         assertThrows(CatNotFoundException.class, () -> crudService.getCat("1"));
     }
 
     @Test
     void givenExistingID_whenGetCat_butRequestFail_thenThrowException() {
-        var requestSpecMock = mock(RestClient.RequestHeadersUriSpec.class);
-        RestClient.ResponseSpec responseSpecMock = mock(RestClient.ResponseSpec.class);
-
-        when(restClient.get()).thenReturn(requestSpecMock);
-        when(requestSpecMock.uri(anyString(), anyString())).thenReturn(requestSpecMock);
-        when(requestSpecMock.retrieve()).thenReturn(responseSpecMock);
-        when(responseSpecMock.onStatus(any(), any())).thenReturn(responseSpecMock);
-        when(responseSpecMock.onStatus(any(), any())).thenAnswer(invocation -> {
-            HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
-            if (status.isError()) {
-                throw new CatUnknownErrorException();
-            }
-            return responseSpecMock;
-        });
+        server.expect(requestTo("/cats/1"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withServerError());
 
         assertThrows(CatUnknownErrorException.class, () -> crudService.getCat("1"));
     }
 
     @Test
     void givenExistingIDAndCatRequestDTO_whenUpdateCat_thenExceptionIsNotThrown() {
-        RestClient.RequestBodyUriSpec requestSpecMock = mock(RestClient.RequestBodyUriSpec.class);
-        RestClient.ResponseSpec responseSpecMock = mock(RestClient.ResponseSpec.class);
-
-        when(restClient.put()).thenReturn(requestSpecMock);
-        when(requestSpecMock.uri(anyString(), anyString())).thenReturn(requestSpecMock);
-        when(requestSpecMock.body(any(CatRequestDTO.class))).thenReturn(requestSpecMock);
-        when(requestSpecMock.retrieve()).thenReturn(responseSpecMock);
-        when(responseSpecMock.onStatus(any(), any())).thenReturn(responseSpecMock);
-        when(responseSpecMock.onStatus(any(), any())).thenReturn(responseSpecMock);
-        when(responseSpecMock.toBodilessEntity()).thenReturn(ResponseEntity.noContent().build());
+        server.expect(requestTo("/cats/1"))
+                .andExpect(method(HttpMethod.PUT))
+                .andRespond(withNoContent());
 
         var id = "1";
         var catRequestDTOUpdated = catRequestDTO.withWeight(7.0);
@@ -167,20 +116,9 @@ class CrudServiceTest {
 
     @Test
     void givenNonExistentIDAndCatRequestDTO_whenUpdateCat_thenThrowException() {
-        RestClient.RequestBodyUriSpec requestSpecMock = mock(RestClient.RequestBodyUriSpec.class);
-        RestClient.ResponseSpec responseSpecMock = mock(RestClient.ResponseSpec.class);
-
-        when(restClient.put()).thenReturn(requestSpecMock);
-        when(requestSpecMock.uri(anyString(), anyString())).thenReturn(requestSpecMock);
-        when(requestSpecMock.body(any(CatRequestDTO.class))).thenReturn(requestSpecMock);
-        when(requestSpecMock.retrieve()).thenReturn(responseSpecMock);
-        when(responseSpecMock.onStatus(any(), any())).thenAnswer(invocation -> {
-            HttpStatus status = HttpStatus.NOT_FOUND;
-            if (status.isError()) {
-                throw new CatNotFoundException();
-            }
-            return responseSpecMock;
-        });
+        server.expect(requestTo("/cats/1"))
+                .andExpect(method(HttpMethod.PUT))
+                .andRespond(withStatus(HttpStatus.NOT_FOUND));
 
         var id = "1";
         var catRequestDTOUpdated = catRequestDTO.withWeight(7.0);
@@ -190,21 +128,9 @@ class CrudServiceTest {
 
     @Test
     void givenExistingIDAndCatRequestDTO_whenUpdateCat_butRequestFail_thenThrowException() {
-        RestClient.RequestBodyUriSpec requestSpecMock = mock(RestClient.RequestBodyUriSpec.class);
-        RestClient.ResponseSpec responseSpecMock = mock(RestClient.ResponseSpec.class);
-
-        when(restClient.put()).thenReturn(requestSpecMock);
-        when(requestSpecMock.uri(anyString(), anyString())).thenReturn(requestSpecMock);
-        when(requestSpecMock.body(any(CatRequestDTO.class))).thenReturn(requestSpecMock);
-        when(requestSpecMock.retrieve()).thenReturn(responseSpecMock);
-        when(responseSpecMock.onStatus(any(), any())).thenReturn(responseSpecMock);
-        when(responseSpecMock.onStatus(any(), any())).thenAnswer(invocation -> {
-            HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
-            if (status.isError()) {
-                throw new CatUnknownErrorException();
-            }
-            return responseSpecMock;
-        });
+        server.expect(requestTo("/cats/1"))
+                .andExpect(method(HttpMethod.PUT))
+                .andRespond(withServerError());
 
         var id = "1";
         var catRequestDTOUpdated = catRequestDTO.withWeight(7.0);
@@ -214,15 +140,9 @@ class CrudServiceTest {
 
     @Test
     void givenExistingID_whenDeleteCat_thenExceptionIsNotThrown() {
-        var requestSpecMock = mock(RestClient.RequestHeadersUriSpec.class);
-        RestClient.ResponseSpec responseSpecMock = mock(RestClient.ResponseSpec.class);
-
-        when(restClient.delete()).thenReturn(requestSpecMock);
-        when(requestSpecMock.uri(anyString(), anyString())).thenReturn(requestSpecMock);
-        when(requestSpecMock.retrieve()).thenReturn(responseSpecMock);
-        when(responseSpecMock.onStatus(any(), any())).thenReturn(responseSpecMock);
-        when(responseSpecMock.onStatus(any(), any())).thenReturn(responseSpecMock);
-        when(responseSpecMock.toBodilessEntity()).thenReturn(ResponseEntity.noContent().build());
+        server.expect(requestTo("/cats/1"))
+                .andExpect(method(HttpMethod.DELETE))
+                .andRespond(withNoContent());
 
         var id = "1";
 
@@ -231,19 +151,9 @@ class CrudServiceTest {
 
     @Test
     void givenNonExistentID_whenDeleteCat_thenThrowException() {
-        var requestSpecMock = mock(RestClient.RequestHeadersUriSpec.class);
-        RestClient.ResponseSpec responseSpecMock = mock(RestClient.ResponseSpec.class);
-
-        when(restClient.delete()).thenReturn(requestSpecMock);
-        when(requestSpecMock.uri(anyString(), anyString())).thenReturn(requestSpecMock);
-        when(requestSpecMock.retrieve()).thenReturn(responseSpecMock);
-        when(responseSpecMock.onStatus(any(), any())).thenAnswer(invocation -> {
-            HttpStatus status = HttpStatus.NOT_FOUND;
-            if (status.isError()) {
-                throw new CatNotFoundException();
-            }
-            return responseSpecMock;
-        });
+        server.expect(requestTo("/cats/1"))
+                .andExpect(method(HttpMethod.DELETE))
+                .andRespond(withStatus(HttpStatus.NOT_FOUND));
 
         var id = "1";
 
@@ -252,20 +162,9 @@ class CrudServiceTest {
 
     @Test
     void givenExistingID_whenDeleteCat_butRequestFail_thenThrowException() {
-        var requestSpecMock = mock(RestClient.RequestHeadersUriSpec.class);
-        RestClient.ResponseSpec responseSpecMock = mock(RestClient.ResponseSpec.class);
-
-        when(restClient.delete()).thenReturn(requestSpecMock);
-        when(requestSpecMock.uri(anyString(), anyString())).thenReturn(requestSpecMock);
-        when(requestSpecMock.retrieve()).thenReturn(responseSpecMock);
-        when(responseSpecMock.onStatus(any(), any())).thenReturn(responseSpecMock);
-        when(responseSpecMock.onStatus(any(), any())).thenAnswer(invocation -> {
-            HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
-            if (status.isError()) {
-                throw new CatUnknownErrorException();
-            }
-            return responseSpecMock;
-        });
+        server.expect(requestTo("/cats/1"))
+                .andExpect(method(HttpMethod.DELETE))
+                .andRespond(withServerError());
 
         var id = "1";
 
@@ -273,15 +172,10 @@ class CrudServiceTest {
     }
 
     @Test
-    void givenRequest_whenListCats_thenReturnListContainingCatResponseDTO() {
-        var requestSpecMock = mock(RestClient.RequestHeadersUriSpec.class);
-        RestClient.ResponseSpec responseSpecMock = mock(RestClient.ResponseSpec.class);
-
-        when(restClient.get()).thenReturn(requestSpecMock);
-        when(requestSpecMock.uri(anyString())).thenReturn(requestSpecMock);
-        when(requestSpecMock.retrieve()).thenReturn(responseSpecMock);
-        when(responseSpecMock.onStatus(any(), any())).thenReturn(responseSpecMock);
-        when(responseSpecMock.body(any(ParameterizedTypeReference.class))).thenReturn(List.of(catResponseDTO));
+    void givenRequest_whenListCats_thenReturnListContainingCatResponseDTO() throws JsonProcessingException {
+        server.expect(requestTo("/cats"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(objectMapper.writeValueAsString(new CatResponseDTO[]{catResponseDTO}), MediaType.APPLICATION_JSON));
 
         var catResponseDTOList = crudService.listCats();
 
@@ -297,19 +191,9 @@ class CrudServiceTest {
 
     @Test
     void givenRequest_whenListCats_butRequestFail_thenReturnListContainingCatResponseDTO() {
-        var requestSpecMock = mock(RestClient.RequestHeadersUriSpec.class);
-        RestClient.ResponseSpec responseSpecMock = mock(RestClient.ResponseSpec.class);
-
-        when(restClient.get()).thenReturn(requestSpecMock);
-        when(requestSpecMock.uri(anyString())).thenReturn(requestSpecMock);
-        when(requestSpecMock.retrieve()).thenReturn(responseSpecMock);
-        when(responseSpecMock.onStatus(any(), any())).thenAnswer(invocation -> {
-            HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
-            if (status.isError()) {
-                throw new CatUnknownErrorException();
-            }
-            return responseSpecMock;
-        });
+        server.expect(requestTo("/cats"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withServerError());
 
         assertThrows(CatUnknownErrorException.class, () -> crudService.listCats());
     }
